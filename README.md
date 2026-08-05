@@ -28,3 +28,8 @@ Here is an example of fetching the health endpoint using curl:
 
 Swagger UI
 ![alt text](<Screenshot 2026-07-17 200346.png>)
+
+My Database-Backed Task API
+
+Assignment 2: Stage 4 SQL Query Observation:
+I ran `SELECT COUNT(*) FROM tasks;` directly in DB Browser, and it returned the total number of tasks currently in my database file.
