@@ -107,30 +107,49 @@ def create_task(task_data: dict):
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, task_data: dict):
     """
-    Updates an existing task in the to-do list.
+    Updates an existing task in the database.
     """
+
     if not task_data or ("title" in task_data and task_data["title"] == ""):
         return JSONResponse(status_code=400, content={"error": "Invalid task data"})
-    for task in tasks:
-        if task["id"] == task_id:
-            if "title" in task_data:
-                task["title"] = task_data["title"]
-            if "done" in task_data:
-                task["done"] = task_data["done"]
-            return task
-    return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
+
+    with sqlite3.connect("tasks.db") as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+        existing_task = cursor.fetchone()
+
+        if existing_task is None:
+            return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
+
+        new_title = task_data.get("title", existing_task["title"])
+        new_done = task_data.get("done", existing_task["done"])
+
+        cursor.execute(
+            "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+            (new_title, int(new_done), task_id)
+        )
+        conn.commit()
+
+        return {"id": task_id, "title": new_title, "done": bool(new_done)}
 
 
 @app.delete("/tasks/{task_id}", status_code=204)
 def delete_task(task_id: int):
     """
-    Deletes a task from the to-do list.
+    Deletes a task from the database.
     """
-    for task in tasks:
-        if task["id"] == task_id:
-            tasks.remove(task)
-            return
-    return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
+    with sqlite3.connect("tasks.db") as conn:
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
+
+    return
 
 
 @app.get("/stats")
