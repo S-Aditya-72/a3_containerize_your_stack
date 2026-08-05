@@ -62,21 +62,46 @@ def get_tasks():
         return cursor.fetchall()
 
 
+@app.get("/tasks/{task_id}")
+def get_task(task_id: int):
+    """
+    Returns a specific task by its ID.
+    """
+    with sqlite3.connect("tasks.db") as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+        task = cursor.fetchone()
+
+        if task is None:
+            return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
+
+        return task
+
+
 @app.post("/tasks", status_code=201)
 def create_task(task_data: dict):
     """
-    Creates a new task and adds it to the to-do list.
+    Creates a new task and saves it to the database.
     """
 
     if "title" not in task_data or task_data["title"] == "":
         return JSONResponse(status_code=400, content={"error": "Task title is required"})
 
-    new_id = len(tasks) + 1
+    with sqlite3.connect("tasks.db") as conn:
+        cursor = conn.cursor()
 
-    new_task = {"id": new_id, "title": task_data["title"], "done": False}
-    tasks.append(new_task)
+        cursor.execute(
+            "INSERT INTO tasks (title, done) VALUES (?, ?)",
+            (task_data["title"], 0)
+        )
 
-    return new_task
+        conn.commit()
+
+        new_id = cursor.lastrowid
+
+    return {"id": new_id, "title": task_data["title"], "done": False}
 
 
 @app.put("/tasks/{task_id}")
