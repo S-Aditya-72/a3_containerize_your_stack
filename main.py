@@ -52,9 +52,14 @@ def health():
 @app.get("/tasks")
 def get_tasks():
     """
-    Returns a list of all current tasks in the to-do list.
+    Returns a list of all current tasks in the database.
     """
-    return tasks
+    with sqlite3.connect("tasks.db") as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM tasks")
+        return cursor.fetchall()
 
 
 @app.post("/tasks", status_code=201)
