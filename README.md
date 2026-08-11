@@ -1,18 +1,21 @@
-Database-Backed Task API
+# Containerized Task API
 
-This is a complete CRUD API for managing a to-do list, built with Python, FastAPI, and SQLite. 
+This is a complete CRUD API for a to-do list, built with Python, FastAPI, and PostgreSQL. The entire stack (API + Database) is fully containerized using Docker.
 
-Why SQLite & Database Details
-SQLite was chosen because it is serverless, requires zero setup, and stores the entire database in a single file (`tasks.db`). This gives the API **persistence**, meaning data survives server restarts (unlike the previous in-memory version). 
+## Why Docker?
+By containerizing the application, this API runs identically on any machine without needing to install Python or Postgres directly. A Docker volume ensures that the database data persists even if the containers are destroyed and recreated. Secrets (like the database password) are loaded safely via a `.env` file.
 
-The database file `tasks.db` is added to `.gitignore` so every fresh clone starts clean. When you start the server for the first time, it automatically creates the database, creates the `tasks` table, and seeds it with 3 example tasks.
+## How to Run
 
-How to Run
-
-To start the server on localhost, run:
-```bash
-uvicorn main:app --reload
-You can view and interact with the endpoints at http://localhost:8000/docs.
+1. Clone this repository.
+2. Copy the example environment file to create your own:
+   ```bash
+   cp .env.example .env
+Start the entire stack (API and Postgres database) with one command:
+code
+Bash
+docker compose up
+Access the API documentation at http://localhost:8000/docs.
 Endpoints
 Method	Path	Description
 GET	/	API info
@@ -22,18 +25,13 @@ GET	/tasks/{id}	Get a specific task
 POST	/tasks	Create a new task
 PUT	/tasks/{id}	Update a task
 DELETE	/tasks/{id}	Delete a task
-GET	/stats	Get task statistics
 Example Request
-Here is an example of fetching the health endpoint:
+Here is an example of fetching the health endpoint using curl:
 code
 JSON
 {
   "status": "ok"
 }
-Stage 4 SQL Query Observation
-I ran SELECT COUNT(*) FROM tasks; directly in DB Browser, and it returned the total number of tasks currently in my database file.
-Screenshots
-Swagger UI:
-![Swagger UI](Screenshot 2026-07-17 200346.png)
-DB Browser for SQLite:
-![alt text](image.png)
+Database Screenshot
+Here is a snapshot of the tasks living inside the PostgreSQL container:
+![alt text](./postgres.png)
