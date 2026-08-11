@@ -1,32 +1,42 @@
-import sqlite3
+import os
+import psycopg
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from psycopg.rows import dict_row
+
+
+load_dotenv()
+
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql://postgres:dev@localhost:5432/tasks")
 
 
 def init_db():
 
-    with sqlite3.connect("tasks.db") as conn:
-        cursor = conn.cursor()
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cursor:
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT,
-                done BOOLEAN
-            )
-        """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id SERIAL PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    done BOOLEAN NOT NULL
+                )
+            """)
 
-        cursor.execute("SELECT COUNT(*) FROM tasks")
-        count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM tasks")
+            count = cursor.fetchone()[0]
 
-        if count == 0:
+            if count == 0:
 
-            cursor.execute(
-                "INSERT INTO tasks (title, done) VALUES ('Buy milk', 0)")
-            cursor.execute(
-                "INSERT INTO tasks (title, done) VALUES ('Walk the dog', 1)")
-            cursor.execute(
-                "INSERT INTO tasks (title, done) VALUES ('Learn FastAPI', 0)")
+                cursor.execute(
+                    "INSERT INTO tasks (title, done) VALUES ('Buy milk', False)")
+                cursor.execute(
+                    "INSERT INTO tasks (title, done) VALUES ('Walk the dog', True)")
+                cursor.execute(
+                    "INSERT INTO tasks (title, done) VALUES ('Learn FastAPI', False)")
 
             conn.commit()
 
@@ -54,12 +64,11 @@ def get_tasks():
     """
     Returns a list of all current tasks in the database.
     """
-    with sqlite3.connect("tasks.db") as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT * FROM tasks")
-        return cursor.fetchall()
+    # Use psycopg and the dictionary row factory
+    with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM tasks")
+            return cursor.fetchall()
 
 
 @app.get("/tasks/{task_id}")
@@ -67,17 +76,16 @@ def get_task(task_id: int):
     """
     Returns a specific task by its ID.
     """
-    with sqlite3.connect("tasks.db") as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+    with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:
+        with conn.cursor() as cursor:
+            # Postgres uses %s instead of ? for safe parameters
+            cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
+            task = cursor.fetchone()
 
-        cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
-        task = cursor.fetchone()
+            if task is None:
+                return JSONResponse(status_code=404, content={"error": "Task not found"})
 
-        if task is None:
-            return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
-
-        return task
+            return task
 
 
 @app.post("/tasks", status_code=201)
