@@ -91,71 +91,66 @@ def get_task(task_id: int):
 @app.post("/tasks", status_code=201)
 def create_task(task_data: dict):
     """
-    Creates a new task and saves it to the database.
+    Creates a new task and saves it to Postgres.
     """
-
     if "title" not in task_data or task_data["title"] == "":
         return JSONResponse(status_code=400, content={"error": "Task title is required"})
 
-    with sqlite3.connect("tasks.db") as conn:
-        cursor = conn.cursor()
+    with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:
+        with conn.cursor() as cursor:
 
-        cursor.execute(
-            "INSERT INTO tasks (title, done) VALUES (?, ?)",
-            (task_data["title"], 0)
-        )
+            cursor.execute(
+                "INSERT INTO tasks (title, done) VALUES (%s, %s) RETURNING *",
+                (task_data["title"], False)
+            )
 
-        conn.commit()
+            new_task = cursor.fetchone()
+            conn.commit()
 
-        new_id = cursor.lastrowid
-
-    return {"id": new_id, "title": task_data["title"], "done": False}
+    return new_task
 
 
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, task_data: dict):
     """
-    Updates an existing task in the database.
+    Updates an existing task in Postgres.
     """
-
     if not task_data or ("title" in task_data and task_data["title"] == ""):
         return JSONResponse(status_code=400, content={"error": "Invalid task data"})
 
-    with sqlite3.connect("tasks.db") as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+    with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:
+        with conn.cursor() as cursor:
 
-        cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
-        existing_task = cursor.fetchone()
+            cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
+            existing_task = cursor.fetchone()
 
-        if existing_task is None:
-            return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
+            if existing_task is None:
+                return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
 
-        new_title = task_data.get("title", existing_task["title"])
-        new_done = task_data.get("done", existing_task["done"])
+            new_title = task_data.get("title", existing_task["title"])
+            new_done = task_data.get("done", existing_task["done"])
 
-        cursor.execute(
-            "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
-            (new_title, int(new_done), task_id)
-        )
-        conn.commit()
+            cursor.execute(
+                "UPDATE tasks SET title = %s, done = %s WHERE id = %s",
+                (new_title, bool(new_done), task_id)
+            )
+            conn.commit()
 
-        return {"id": task_id, "title": new_title, "done": bool(new_done)}
+            return {"id": task_id, "title": new_title, "done": bool(new_done)}
 
 
 @app.delete("/tasks/{task_id}", status_code=204)
 def delete_task(task_id: int):
     """
-    Deletes a task from the database.
+    Deletes a task from Postgres.
     """
-    with sqlite3.connect("tasks.db") as conn:
-        cursor = conn.cursor()
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM tasks WHERE id = %s", (task_id,))
+            conn.commit()
 
-        cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
-        conn.commit()
-
-        if cursor.rowcount == 0:
-            return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
+            if cursor.rowcount == 0:
+                return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
 
     return
 
