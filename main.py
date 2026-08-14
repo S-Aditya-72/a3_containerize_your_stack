@@ -4,10 +4,15 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from psycopg.rows import dict_row
+from supabase import create_client, Client
 
 
 load_dotenv()
 
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://postgres:dev@localhost:5432/tasks")
@@ -44,6 +49,7 @@ def init_db():
 init_db()
 
 app = FastAPI()
+print("Server running and connected to Supabase")
 
 
 @app.get("/")
@@ -153,27 +159,3 @@ def delete_task(task_id: int):
                 return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
 
     return
-
-
-@app.get("/stats")
-def get_stats():
-    """
-    Returns statistics about the tasks in the to-do list.
-    """
-    total_tasks = len(tasks)
-
-    # List comprehension to filter only the completed tasks, then get the length
-    completed_tasks = len([task for task in tasks if task.get("done") == True])
-
-    # Protect against ZeroDivisionError
-    if total_tasks > 0:
-        percentage = (completed_tasks / total_tasks) * 100
-    else:
-        percentage = 0
-
-    return {
-        "total": total_tasks,
-        "completed": completed_tasks,
-        # round to 2 decimal places
-        "completion_percentage": round(percentage, 2)
-    }
