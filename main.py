@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from psycopg.rows import dict_row
+from supabase_auth.errors import AuthApiError
 from supabase import create_client, Client
 
 
@@ -159,3 +160,52 @@ def delete_task(task_id: int):
                 return JSONResponse(status_code=404, content={"error": f"Task {task_id} not found"})
 
     return
+
+
+@app.post("/auth/signup", status_code=201)
+def signup(credentials: dict):
+
+    email = credentials.get("email")
+    password = credentials.get("password")
+
+    if not email or not password:
+        return JSONResponse(status_code=400, content={"error": "Email and password are required"})
+
+    try:
+
+        response = supabase.auth.sign_up({
+            "email": email,
+            "password": password
+        })
+        return {
+            "id": response.user.id,
+            "email": response.user.email
+        }
+
+    except AuthApiError as e:
+
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.post("/auth/login")
+def login(credentials: dict):
+    email = credentials.get("email")
+    password = credentials.get("password")
+
+    if not email or not password:
+        return JSONResponse(status_code=400, content={"error": "Email and password are required"})
+
+    try:
+        response = supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+
+        return {
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token
+        }
+
+    except AuthApiError:
+
+        return JSONResponse(status_code=401, content={"error": "Invalid login credentials"})
