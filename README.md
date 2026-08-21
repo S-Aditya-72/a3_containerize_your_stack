@@ -1,37 +1,34 @@
-# Containerized Task API
+This is a complete CRUD API for a to-do list, secured with **Supabase Authentication**. It handles user sign-up, login, logout, and uses **JSON Web Tokens (JWTs)** to protect secure routes. 
 
-This is a complete CRUD API for a to-do list, built with Python, FastAPI, and PostgreSQL. The entire stack (API + Database) is fully containerized using Docker.
+## Security Features
+- Passwords are never stored or hashed locally; Supabase acts as our Identity Provider.
+- Protected routes use a reusable FastAPI `Depends` middleware to verify Bearer tokens cryptographically.
+- Swagger UI is configured with `HTTPBearer` to allow easy token authorization in the browser.
 
-## Why Docker?
-By containerizing the application, this API runs identically on any machine without needing to install Python or Postgres directly. A Docker volume ensures that the database data persists even if the containers are destroyed and recreated. Secrets (like the database password) are loaded safely via a `.env` file.
-
-## How to Run
-
-1. Clone this repository.
-2. Copy the example environment file to create your own:
+## Environment Setup
+**CRITICAL:** Never commit your actual Supabase keys.
+1. Clone the repository.
+2. Copy the example environment file:
    ```bash
    cp .env.example .env
-Start the entire stack (API and Postgres database) with one command:
+Fill in your .env file with your Postgres Database URL and your Supabase Project URL / Anon Key.
+How to Run
+To start the API locally, run:
 code
 Bash
-docker compose up
-Access the API documentation at http://localhost:8000/docs.
-Endpoints
-Method	Path	Description
-GET	/	API info
-GET	/health	Health check
-GET	/tasks	List all tasks
-GET	/tasks/{id}	Get a specific task
-POST	/tasks	Create a new task
-PUT	/tasks/{id}	Update a task
-DELETE	/tasks/{id}	Delete a task
-Example Request
-Here is an example of fetching the health endpoint using curl:
+uvicorn main:app --reload
+Access the interactive API documentation at http://localhost:8000/docs.
+API Endpoints
+Method	Path	Auth Required?	Description
+GET	/public/info	❌ No	Public welcome message
+POST	/auth/signup	❌ No	Create a new user account
+POST	/auth/login	❌ No	Authenticate and receive a JWT
+POST	/auth/logout	🔒 Yes	End the user's session
+GET	/protected/profile	🔒 Yes	Access private user data
+GET	/protected/dashboard	🔒 Yes	Access a private dashboard
+(Note: The standard Task CRUD endpoints from previous weeks are still available as well).
+Swagger UI Authorization
+The API documentation natively supports JWT Bearer Authentication.
+![alt text](./swagger.png)
 code
-JSON
-{
-  "status": "ok"
-}
-Database Screenshot
-Here is a snapshot of the tasks living inside the PostgreSQL container:
-![alt text](./postgres.png)
+Code
