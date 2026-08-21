@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from psycopg.rows import dict_row
 from supabase_auth.errors import AuthApiError
 from supabase import create_client, Client
+from fastapi import Request
 
 
 load_dotenv()
@@ -209,3 +210,27 @@ def login(credentials: dict):
     except AuthApiError:
 
         return JSONResponse(status_code=401, content={"error": "Invalid login credentials"})
+
+
+@app.get("/public/info")
+def public_info():
+    """
+    A public route that anyone can access.
+    """
+    return {"message": "Welcome stranger! This info is public."}
+
+
+@app.get("/protected/profile")
+def protected_profile(request: Request):
+    """
+    A protected route. Checks for a token but doesn't verify it yet.
+    """
+
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return JSONResponse(status_code=401, content={"error": "Access token required"})
+
+    token = auth_header.split(" ")[1]
+
+    return {"message": f"Welcome! You brought a token: {token[:10]}..."}
