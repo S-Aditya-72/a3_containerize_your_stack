@@ -223,9 +223,8 @@ def public_info():
 @app.get("/protected/profile")
 def protected_profile(request: Request):
     """
-    A protected route. Checks for a token but doesn't verify it yet.
+    A protected route. Verifies the Bearer token with Supabase.
     """
-
     auth_header = request.headers.get("Authorization")
 
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -233,4 +232,15 @@ def protected_profile(request: Request):
 
     token = auth_header.split(" ")[1]
 
-    return {"message": f"Welcome! You brought a token: {token[:10]}..."}
+    try:
+        response = supabase.auth.get_user(token)
+
+        return {
+            "message": "Welcome to the VIP room!",
+            "user_id": response.user.id,
+            "email": response.user.email
+        }
+
+    except AuthApiError:
+
+        return JSONResponse(status_code=401, content={"error": "Invalid or expired token"})
