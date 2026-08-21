@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from psycopg.rows import dict_row
 from supabase_auth.errors import AuthApiError
 from supabase import create_client, Client
+from fastapi import Request, Depends, HTTPException
 from fastapi import Request
 
 
@@ -220,27 +221,50 @@ def public_info():
     return {"message": "Welcome stranger! This info is public."}
 
 
-@app.get("/protected/profile")
-def protected_profile(request: Request):
+def get_current_user(request: Request):
     """
-    A protected route. Verifies the Bearer token with Supabase.
+    The Reusable Guard. We attach this to any route we want to lock!
     """
     auth_header = request.headers.get("Authorization")
 
     if not auth_header or not auth_header.startswith("Bearer "):
-        return JSONResponse(status_code=401, content={"error": "Access token required"})
+
+        raise HTTPException(status_code=401, detail="Access token required")
 
     token = auth_header.split(" ")[1]
 
     try:
         response = supabase.auth.get_user(token)
 
-        return {
-            "message": "Welcome to the VIP room!",
-            "user_id": response.user.id,
-            "email": response.user.email
-        }
-
+        return response.user
     except AuthApiError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-        return JSONResponse(status_code=401, content={"error": "Invalid or expired token"})
+
+@app.get("/protected/profile")
+def protected_profile(user=Depends(get_current_user)):
+    """
+    A protected route using the reusable guard.
+    """
+    return {
+        "message": "Welcome to the VIP room!",
+        "user_id": user.id,
+        "email": user.email
+    }
+
+
+@app.get("/protected/dashboard")
+def protected_dashboard(user=Depends(get_current_user)):
+    """
+    A SECOND protected route to prove reusability!
+    """
+    return {"message": f"Welcome to your dashboard, {user.email}!"}
+
+
+@app.post("/auth/logout", status_code=204)
+def logout(user=Depends(get_current_user)):
+    """
+    Logs the user out. You must be logged in (have a token) to log out!
+    """
+    supabase.auth.sign_out()
+    return
