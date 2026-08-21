@@ -8,6 +8,7 @@ from supabase_auth.errors import AuthApiError
 from supabase import create_client, Client
 from fastapi import Request, Depends, HTTPException
 from fastapi import Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 
 load_dotenv()
@@ -53,6 +54,7 @@ init_db()
 
 app = FastAPI()
 print("Server running and connected to Supabase")
+security = HTTPBearer()
 
 
 @app.get("/")
@@ -221,21 +223,16 @@ def public_info():
     return {"message": "Welcome stranger! This info is public."}
 
 
-def get_current_user(request: Request):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
-    The Reusable Guard. We attach this to any route we want to lock!
+    The Reusable Guard, upgraded for Swagger UI!
+    FastAPI automatically checks for the 'Bearer' header now.
     """
-    auth_header = request.headers.get("Authorization")
 
-    if not auth_header or not auth_header.startswith("Bearer "):
-
-        raise HTTPException(status_code=401, detail="Access token required")
-
-    token = auth_header.split(" ")[1]
+    token = credentials.credentials
 
     try:
         response = supabase.auth.get_user(token)
-
         return response.user
     except AuthApiError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
